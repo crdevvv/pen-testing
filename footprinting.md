@@ -86,3 +86,48 @@ Anche se il provider del cloud rendono sicura la loro infrastruttura conetralmen
 ## Staff
 La ricerca e l'identificazione dei dipendenti sulle piattaforme di social media possono rivelare molto sull'infrastruttura e la composizione dei team. Questo, a sua volta, può permetterci di individuare le tecnologie, i linguaggi di programmazione e persino le applicazioni software utilizzate. In larga misura, saremo anche in grado di valutare l'attenzione di ciascun individuo in base alle sue competenze.
 - tramite linkedin, Xing, analizziamo i linguaggi richiesti, le repo github
+
+# FTP
+Gira al livello applicativo dello steck tpc/ip, stesso livello di http, pop,... Gira sulla porta 21. Distinzione fra ftp attivo e passivo:
+- attivo: client stabilisce la connnessione sulla porta 21 e informa il server su quale client-side port il server puo trasmettere la risposta. Se firewall protegge il client il serve non potra mandare nulla. 
+- passivo: serve annuncia una porta attraverso cui il client stabilisce il canale. Dato che il client inizia la connessione, il firewall non blocca il trasferimento.
+
+### Default configuration
+Server ftp piu usato su distibuzioni linux è vsftpd. Il file di conf è in /etc/vsftpd.conf.
+- sudo apt install vsftpd
+- cat /etc/vsftpd.conf | grep -v "#" : nel file di config troviamo diversi campi da modificare fra cui anonymous_enable, listen,...
+- /etc/ftpusers: contiene lista di utenti che non possono accedere a ftp anche se presenti nel sistema linux
+
+### Dangerous settings
+Principalmente sono settings dentro a vsftpd.conf.
+- anonymous_enable=YES	Allowing anonymous login?
+- anon_upload_enable=YES	Allowing anonymous to upload files?
+- anon_mkdir_write_enable=YES	Allowing anonymous to create new directories?
+- no_anon_password=YES	Do not ask anonymous for password?
+- anon_root=/home/username/ftp	Directory for anonymous.
+- write_enable=YES	Allow the usage of FTP commands: STOR, DELE, RNFR, RNTO, MKD, RMD, APPE, and SITE?
+- status: comando
+- debug: comando 
+- trace: comando
+- dirmessage_enable=YES	Show a message when they first enter a new directory?
+- chown_uploads=YES	Change ownership of anonymously uploaded files?
+- chown_username=username	User who is given ownership of anonymously uploaded files.
+- local_enable=YES	Enable local users to login?
+- chroot_local_user=YES	Place local users into their home directory?
+- chroot_list_enable=YES	Use a list of local users that will be placed in their home directory?
+- hide_ids=YES	All user and group information in directory listings will be displayed as "ftp".
+- ls_recurse_enable=YES	Allows the use of recurse listings.
+
+### Download a file
+- get filename: scarica il file dal server ftp nella nostra cartella locale
+- wget -m --no-passive
+
+### Upload a file
+Creare un file in locale es touch filename. 
+- put filaname
+
+## Footprinting the service
+Il footprinting tramite vari scanner di rete è un approccio pratico e diffuso. Questi strumenti ci permettono di identificare più facilmente diversi servizi, anche se non sono accessibili sulle porte standard. Uno degli strumenti più utilizzati a questo scopo è Nmap. Nmap include anche l'Nmap Scripting Engine (NSE), una raccolta di script diversi scritti per servizi specifici.
+- nmap --script-trace: traccia progressi of nse scripts at network level
+- interagisco con nc -nv p port o con telnet
+- se il server ftp gira con cifratura ssl/tls allora il client deve gestire tls/ssl, si usa openssl e ci comunica col server: openssl s_client -connect 10.129.14.136:21 -starttls ftp
