@@ -109,7 +109,7 @@ Detection ids/ips piu difficile, perche sono sistemi passivi di monitoraggio del
 Puo capitare che l'amministratore blocchi specifiche subnet da diverse zone del mondo, per prevenire accessi alla rete target. Questo è un altro esempio di IPS bloccante.</br> Decoy scanning method è la scelta giusta, nmap genera vari ip dentro l'header per cammuffare l'origine del pacchetto inviato, opzione -D RND:5  per dire di generare cinque ip causali. Decoys possono essere usati con syn, ack, icmp scans e os detection. Con -S possiamo specificare manualmente ip addr.
 
 ## DNS proxying
-Di default nmapp esegue dns resolution a meno che non si specifichi il contrario. Le query dns passano in quesi tutti i casi perche il web server puo essere trovato e visitato. DNS queries fatte sulla porta udp 53. Nmap specifica dns server con --dns-server \<ns>. Possiamo usare porta 53 come sorgente (--source-pport 53) per la scansione. Trovato che il firewall accetta pacchetti dalla porta 53 ci connettiamo a quella porta con nc: ncat -nv --source-port 53 10.129.2.28 50000
+Di default nmapp esegue dns resolution a meno che non si specifichi il contrario. Le query dns passano in quesi tutti i casi perche il web server puo essere trovato e visitato. DNS queries fatte sulla porta udp 53. Nmap specifica dns server con --dns-server \<ns>. Possiamo usare porta 53 come sorgente (--source-port 53) per la scansione. Trovato che il firewall accetta pacchetti dalla porta 53 ci connettiamo a quella porta con nc: ncat -nv --source-port 53 10.129.2.28 50000
 
 To find out what program or service is occupying a specific port, choose the appropriate tool based on your operating system.
 

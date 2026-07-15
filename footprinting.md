@@ -131,3 +131,83 @@ Il footprinting tramite vari scanner di rete è un approccio pratico e diffuso. 
 - nmap --script-trace: traccia progressi of nse scripts at network level
 - interagisco con nc -nv p port o con telnet
 - se il server ftp gira con cifratura ssl/tls allora il client deve gestire tls/ssl, si usa openssl e ci comunica col server: openssl s_client -connect 10.129.14.136:21 -starttls ftp
+
+# SMB
+Server message block, protocollo client-server che regola l'accesso a file, intere directory e altre risorse di rete come stampanti, router o interfacce rilasciate per la rete. Lo scambio di informazioni tra diversi processi di sistema può essere gestito anche in base al protocollo SMB. Con il software gratuito samba, si abilita smb anche per linux e unix. Consente al client di comunicare con altri partecipanti nella stessa rete per accedere a file o servizi condivisi in rete. SMB usa tcp per eseguire three way handshake fra client e server prima di stabilire definitivamente la connessione.
+
+## Samba
+Samba implementa il protocollo di rete Common Internet File System (CIFS). CIFS è un dialetto di SMB, ovvero un'implementazione specifica del protocollo SMB originariamente creato da Microsoft. Questo permette a Samba di comunicare efficacemente con i sistemi Windows più recenti. Per questo motivo, viene spesso indicato come SMB/CIFS. CIFS opera sulla porta 445. Ci sono anche versioni successive come smb2 e smb3, mentre versioni come smb 1(cifs) sono considerate outdated.
+
+### Default configuration
+- cat /etc/samba/smb.conf | grep -v "#\|\;"
+
+### Dangerous settings
+- browseable = yes	Allow listing available shares in the current share?
+- read only = no	Forbid the creation and modification of files?
+- writable = yes	Allow users to create and modify files?
+- guest ok = yes	Allow connecting to the service without using a password?
+- enable privileges = yes	Honor privileges assigned to specific SID?
+- create mask = 0777	What permissions must be assigned to the newly created files?
+- directory mask = 0777	What permissions must be assigned to the newly created directories?
+- logon script = script.sh	What script needs to be executed on the user's login?
+- magic script = script.sh	Which script should be executed when the script gets closed?
+- magic output = script.out	Where the output of the magic script needs to be stored?
+
+### Restart samba
+- root@samba:~# sudo systemctl restart smbd
+
+### SMBclient - Connecting to the Share
+- crirom00@htb[\/htb]$ smbclient -N -L //10.129.14.128: -L list the shares of the server, -N anonymous access, chiamata null session 
+
+### Download Files from SMB
+su usa comando get nomefilef. Smbclient ci permette anche di eseguire comandi di sistema locali utilizzando un punto esclamativo all'inizio (!\<cmd>) senza interrompere la connessione. Con smbstatus, controllo quali hosts e info varie.
+
+## Footprinting the service
+Inizio con le solite scansioni con nmap sulle porte 139,445 
+
+### RPC
+Strumento utile *rpcclient*, include params passing and return of function value.
+- rpcclient -U "" 10.129.14.128
+
+Offre diverse richieste con cui possiamo eseguire specifiche funzioni su server smb per ottenere info.
+- srvinfo	Server information.
+- enumdomains	Enumerate all domains that are deployed in the network.
+- querydominfo	Provides domain, server, and user information of deployed domains.
+- netshareenumall	Enumerates all available shares.
+- netsharegetinfo \<share>	Provides information about a specific share.
+- enumdomusers	Enumerates all domain users.
+- queryuser \<RID>	Provides information about a specific user.
+- querygroup \<RID>
+
+### Brute forcing user RIDs
+- crirom00@htb$ for i in \$(seq 500 1100);do rpcclient -N -U "" 10.129.14.128 -c "queryuser 0x$(printf '%x\n' $i)" | grep "User Name\|user_rid\|group_rid" && echo "";done
+- un alterantiva è uno script python del della libreria Impacket chiamato [samrdump.py](https://github.com/fortra/impacket/blob/master/examples/samrdump.py)
+- altri tool sono SMBMap e CrackMapExec per fare enumeration di servizi smb
+- [enum4linux-ng](https://github.com/cddmp/enum4linux-ng)
+- crirom00@htb[/htb]$ git clone https://github.com/cddmp/enum4linux-ng.git
+- crirom00@htb[/htb]$ cd enum4linux-ng
+- crirom00@htb[/htb]$ pip3 install -r requirements.txt
+- ./enum4linux-ng.py 10.129.14.128 -A
+
+# NFS 
+Network file system, same purpose as smb, access file systems over the network. Per sistemi unix e linux, quindi non possono comunicare direttamente con server smb. Tre versioni, da nfsv2 a nfsv4 (include kerberos autentication). Si basa sul protocollo ONC-RPC  su tcp e udp sulla porta 111. Non ha meccanismi di autenticazione o autorizzazione, viene gestita direttamente del protocollo RPC. */etc/exports* contiene una tabella di filesystem su server nfs accessibili al client.
+- root@nfs:~# echo '/mnt/nfs  10.129.14.0/24(sync,no_subtree_check)' >> /etc/exports
+- root@nfs:~# systemctl restart nfs-kernel-server 
+- root@nfs:~# exportfs
+
+## Dangerous settings
+- rw
+- insecure: port above 1024 will be used
+- nohide: If another file system was mounted below an exported directory, this directory is exported by its own exports entry
+- no_root_squash: All files created by root are kept with the UID/GID 0
+
+## Footprinting the service
+Tcp ports 111 e 2049 sono essenziali.
+- sudo nmap --script nfs* 10.129.14.128 -sV -p111,2049
+
+Scoperti i servizi nfs, possiamo caricarli in locale. Quindi creiamo una nuova cartella vuota in cui montare lo share nfs.
+- showmount -e targetip
+- mkdir tnfs
+- sudo mount -t nfs 10.129.14.128:/ ./tnfs/ -o nolock
+- cd tnfs, ci navigo al suo interno
+- sudo umount ./target-NFS: unmounting
