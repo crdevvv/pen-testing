@@ -211,3 +211,54 @@ Scoperti i servizi nfs, possiamo caricarli in locale. Quindi creiamo una nuova c
 - sudo mount -t nfs 10.129.14.128:/ ./tnfs/ -o nolock
 - cd tnfs, ci navigo al suo interno
 - sudo umount ./target-NFS: unmounting
+
+# DNS
+![dns](dns.png)
+Sistema per risolvere nomi in indirizzi ip, non ha un db centrale! Ci sono diversi tipi di dns: 
+- dns root server: responsabile del top-level domain, chiamato solo se i name serve non rispondono (ce ne sono 13 nel mondo)
+- Authoritative name server: 
+- Non-authoritative name server
+- Caching server
+- Forwarding server: forward dns queries to another dns server
+- Resolver: esegue name resolution localmente nel pc o nel router
+
+DNS principalmente non cifrato, quindi query dns sono spiabili. Soluzioni: dns over tls (dot) o https (doh). Ci sono diversi tipi di record dns:
+![dnstree](dns2.png)
+
+## Default configuration
+Server dns lavorano con tre tipi diversi di file di configurazione:
+1. local dns config files
+2. zone files
+3. reverse name resolution files
+
+Di solito viene usato il server dns Bind9 su sistemi linux.
+The local configuration files are usually:
+- named.conf.local
+- named.conf.options
+- named.conf.log
+
+## Dangerous settings
+Molti modi per attaccare server dns: [bind9 attacks](https://www.cvedetails.com/product/144/ISC-Bind.html?vendor_id=64), SecurityTrails fornisce una breve lista degli attacchi piu comuni [list](https://web.archive.org/web/20250329174745/https://securitytrails.com/blog/most-popular-types-dns-attacks).
+Alcune impostazioni che se modificate portano a vulnerabilita sono:
+- allow-query
+- allow-recursion
+- allow-transfer
+- zone-statistics
+
+## Footprinting the service
+Innanzitutto, è possibile interrogare il server DNS per sapere quali altri nomi dei server sono noti. Questo si fa utilizzando il record NS e specificando il server DNS che si desidera interrogare tramite il carattere @.
+- dig ns inlanefreight.htb @10.129.14.128
+- dig CH TXT version.bind 10.129.120.85: query dns server's version
+- dig any inlanefreight.htb @10.129.14.128: view all available record
+
+Il Zone Transfer (trasferimento di zona) è il meccanismo di sincronizzazione con cui più server DNS mantengono copie identiche dello stesso archivio di indirizzi (chiamato "file di zona").
+Avviene tramite il protocollo AXFR (Asynchronous Full Transfer Zone) sulla porta TCP 53.
+Per sicurezza, i server verificano l'identità reciproca usando una chiave segreta chiamata rndc-key.
+Le modifiche ai domini vengono fatte solo sul server principale (Primary/Master). I server di riserva (Secondary/Slave) scaricano periodicamente i dati aggiornati confrontando un numero progressivo chiamato Serial Number contenuto nel record SOA (Start of Authority).
+
+- dig axfr inlanefreight.htb @10.129.14.128
+
+### Subdomain brute forcing
+- crirom00@htb[/htb]$ for sub in $(cat /opt/useful/seclists/Discovery/DNS/subdomains-top1million-110000.txt);do dig \$sub.inlanefreight.htb @10.129.14.128 | grep -v ';\|SOA' | sed -r '/^\s*$/d' | grep $sub | tee -a subdomains.txt;done
+
+- dnsenum --dnsserver 10.129.14.128 --enum -p 0 -s 0 -o subdomains.txt -f /opt/useful/seclists/Discovery/DNS/subdomains-top1million-110000.txt inlanefreight.htb
