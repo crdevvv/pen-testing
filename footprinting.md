@@ -225,6 +225,33 @@ Sistema per risolvere nomi in indirizzi ip, non ha un db centrale! Ci sono diver
 DNS principalmente non cifrato, quindi query dns sono spiabili. Soluzioni: dns over tls (dot) o https (doh). Ci sono diversi tipi di record dns:
 ![dnstree](dns2.png)
 
+## Struttura dei server dns nel mondo
+Un singolo server DNS non contiene l'intera struttura (Root, TLD, SLD, Sottodomini) al suo interno. Il DNS è un sistema distribuito: ogni server sulla Terra gestisce solo un piccolo pezzo di questo albero (chiamato Zona di Autorità), e tutti insieme collaborano per darsi risposte a vicenda. </br>
+Chi gestisce cosa? (La mappa mondiale dei Server)
+Invece di avere un unico server con tutti i domini del mondo, la responsabilità è divisa a livelli:
+1. I Root Name Servers (La Radice .)
+Esistono solo 13 indirizzi IP logici nel mondo (gestiti da centinaia di server fisici replicati ovunque) che gestiscono la radice dell'albero.
+Cosa sanno? Non sanno quali siti esistono. Sanno solo dove si trovano i server che gestiscono i TLD (come .com, .it, .org).
+Se chiedi a loro google.com, ti risponderanno: "Non lo so, ma chiedi al server del .com che si trova a questo indirizzo IP".
+2. I TLD Name Servers (I gestori delle estensioni)
+Sono server gestiti da enti nazionali o internazionali (ad esempio, il Registro .it in Italia o l'ICANN).
+Cosa sanno? Gestiscono una specifica estensione. Sanno quali domini sono stati acquistati e quali Name Server sono autorizzati a gestirli.
+Se chiedi a loro google.com, ti risponderanno: "Non ho la lista delle pagine di Google, ma chiedi ai server DNS di Google che si trovano a questo IP".
+3. I Server Autoritativi (I proprietari del dominio - SLD e Sottodomini)
+Questo è il livello del server della tua challenge (10.129.101.216). È il server di proprietà dell'azienda (o del loro provider).
+Cosa sanno? Hanno l'autorità assoluta sul dominio di secondo livello (inlanefreight.htb) e su tutti i suoi sottodomini (dev, app, internal).
+Se chiedi a questo server dev.inlanefreight.htb, ti risponderà direttamente: "Sì, lo gestisco io, l'IP è 10.12.0.1".</br>
+Per far funzionare questo sistema, i server DNS si dividono principalmente in due categorie basate sul loro "lavoro":
+1. I Risolutori Ricorsivi (I "Postini")
+Sono i server DNS che imposti sulla tua scheda di rete (come 1.1.1.1 di Cloudflare o 8.8.8.8 di Google).
+Il loro scopo: Non possiedono alcun dominio. Fanno da intermediari per te.Quando scrivi google.com, loro fanno tutto il giro (Root ➔ TLD ➔ Server Autoritativo), recuperano l'IP e te lo portano indietro pronto all'uso, memorizzandolo nella loro memoria cache per velocizzare le richieste future.
+
+2. I Server Autoritativi (I "Proprietari di casa")
+Sono i server configurati per ospitare i file di zona (come il server della challenge).
+Il loro scopo: Rispondere solo per i domini che possiedono. Se chiedi a 10.129.101.216 di risolverti google.com, molto probabilmente ti dirà di no o darà errore, perché lui è configurato per conoscere ed essere l'autorità solo su inlanefreight.htb.
+
+
+
 ## Default configuration
 Server dns lavorano con tre tipi diversi di file di configurazione:
 1. local dns config files
@@ -262,3 +289,246 @@ Le modifiche ai domini vengono fatte solo sul server principale (Primary/Master)
 - crirom00@htb[/htb]$ for sub in $(cat /opt/useful/seclists/Discovery/DNS/subdomains-top1million-110000.txt);do dig \$sub.inlanefreight.htb @10.129.14.128 | grep -v ';\|SOA' | sed -r '/^\s*$/d' | grep $sub | tee -a subdomains.txt;done
 
 - dnsenum --dnsserver 10.129.14.128 --enum -p 0 -s 0 -o subdomains.txt -f /opt/useful/seclists/Discovery/DNS/subdomains-top1million-110000.txt inlanefreight.htb
+
+# SMTP
+Il SMTP (Simple Mail Transfer Protocol) è il protocollo standard utilizzato per inviare e instradare le email in una rete IP (da client a server o tra server stessi). Per la ricezione e la lettura delle email, viene invece affiancato da protocolli come IMAP o POP3.
+Originariamente concepito in chiaro, l'SMTP oggi utilizza diverse porte a seconda del livello di sicurezza:
+
+- Porta TCP 25 (Default): Utilizzata principalmente per la comunicazione diretta e il trasferimento di email tra server (MTA a MTA). Spesso non richiede autenticazione.
+
+- Porta TCP 587 (Invio con Autenticazione): Utilizzata dai client (MUA) per inviare email al server. Richiede autenticazione (username e password) e utilizza il comando STARTTLS per cifrare la connessione (da testo in chiaro a cifrato).
+
+- Porta TCP 465 (SMTPS): Utilizzata per connessioni interamente cifrate fin dall'inizio tramite SSL/TLS.
+
+La trasmissione di un'email non è diretta, ma attraversa diversi componenti software specializzati:
+
+1. MUA (Mail User Agent): Il client dell'utente (es. Outlook, Thunderbird) che compone l'email divisa in Header (intestazione) e Body (corpo del testo).
+
+2. MSA (Mail Submission Agent / Relay): Riceve l'email dal MUA, ne verifica la validità e l'origine dell'utente per ridurre il carico sul server principale.
+
+3. MTA (Mail Transfer Agent): Il cuore del server email (es. Postfix, Exim). Controlla le dimensioni, filtra lo spam, interroga il DNS per trovare l'IP del server del destinatario e gli invia l'email tramite porta 25.
+
+4. MDA (Mail Delivery Agent): Riceve l'email finale sul server di destinazione e la deposita fisicamente nella casella postale (Mailbox) dell'utente, rendendola disponibile per IMAP/POP3.
+
+SMTP ha due svantaggi nativi:
+1. Assenza di conferme di consegna standardizzate: Il protocollo non prevede un sistema di notifica di avvenuta consegna utilizzabile in modo automatizzato. In caso di errore, restituisce solo un messaggio testuale (solitamente in inglese) contenente l'header del messaggio non recapitato.
+2. Mancanza di autenticazione nativa (Mail Spoofing): All'avvio della connessione non è richiesta l'identità dell'utente. Chiunque può connettersi e specificare un indirizzo mittente falso. Questa debolezza permette l'abuso dei server configurati come "open relay" per l'invio massivo di spam e campagne di phishing.
+
+Per contrastare questi limiti, l'infrastruttura di posta elettronica moderna adotta specifici protocolli di sicurezza e una versione estesa di SMTP:
+- ESMTP (Extended SMTP): Rappresenta lo standard effettivo oggi utilizzato. Introduce funzionalità aggiuntive, tra cui il comando EHLO in sostituzione del vecchio HELO.
+- Cifratura e Autenticazione (STARTTLS e AUTH PLAIN): Tramite il comando STARTTLS all'inizio della sessione, la connessione in chiaro viene convertita in una sessione cifrata SSL/TLS. Una volta cifrato il canale, è possibile trasmettere in sicurezza le credenziali di accesso tramite l'estensione AUTH PLAIN.
+
+Protocolli di autenticazione del mittente:
+- SPF (Sender Policy Framework): Record DNS che elenca gli indirizzi IP autorizzati a inviare email per conto di un dominio.
+
+- DKIM (DomainKeys Identified Mail): Firma digitale crittografica inserita nell'header dell'email per garantire che il messaggio provenga realmente dal dominio dichiarato e non sia stato alterato durante il transito.
+
+## Default configuration
+- cat /etc/postfix/main.cf 
+- AUTH PLAIN	AUTH is a service extension used to authenticate the client.
+- HELO	The client logs in with its computer name and thus starts the session.
+- MAIL FROM	The client names the email sender.
+- RCPT TO	The client names the email recipient.
+- DATA	The client initiates the transmission of the email.
+- RSET	The client aborts the initiated transmission but keeps the connection between client and server.
+- VRFY	The client checks if a mailbox is available for message transfer.
+- EXPN	The client also checks if a mailbox is available for messaging with this command.
+- NOOP	The client requests a response from the server to prevent disconnection due to time-out.
+- QUIT	The client terminates the session.
+
+Alcuni codici di riposta in SMTP:
+- 220 server is ready
+- 250 server has transmitted a msg with success
+- 4..,5.. tipicamente sono errori
+
+## Dangerous settings
+Open relay configuration: mynetworks = 0.0.0.0/0
+
+## Footprinting the Service
+- sudo nmap 10.129.14.128 -sC -sV -p25
+Possiamo anche usare lo script smtp-open-relay.
+
+#  IMAP/POP3
+1. Differenze Fondamentali tra IMAP e POP3
+IMAP (Gestione Online): È un protocollo client-server progettato per la gestione delle email direttamente sul server remoto. Consente la sincronizzazione in tempo reale tra più client indipendenti (es. smartphone e PC), mostrando una base dati uniforme. Le email rimangono sul server fino all'esplicita eliminazione. Supporta funzionalità avanzate come la creazione di cartelle gerarchiche, la ricerca di testo sui server e l'accesso simultaneo di più utenti.
+
+POP3 (Download Locale): Ha funzionalità limitate alla sola quotazione, recupero (download) e cancellazione delle email dal server. Non supporta la sincronizzazione multi-client né la gestione di cartelle remote.
+
+2. Funzionamento Tecnico e Porte
+Connessione di Default: Avviene sulla porta TCP 143 in modalità testuale (comandi in formato ASCII).
+
+Asincronia dei comandi: Il client può inviare più comandi in successione senza attendere la risposta del server; le risposte successive vengono associate ai rispettivi comandi tramite identificatori (ID) univoci inclusi nella richiesta.
+
+Flusso operativo: Subito dopo la connessione, l'utente deve autenticarsi con username e password. Solo dopo l'autenticazione è possibile accedere alle cartelle della casella postale.
+
+Integrazione con SMTP: IMAP non invia le email (compito che spetta a SMTP), ma permette ai client di salvare una copia delle email inviate in una cartella remota specifica, rendendole visibili a tutti i dispositivi connessi.
+
+3. Sicurezza e Cifratura
+Trasmissione in chiaro: Di base, IMAP trasmette comandi, email e credenziali di accesso in testo semplice (plain text), esponendo la sessione ad intercettazioni.
+
+Cifratura SSL/TLS: Per proteggere i dati, i server moderni implementano sessioni cifrate. A seconda dell'implementazione, la connessione protetta può utilizzare la porta stasndard 143 (tramite aggiornamento STARTTLS) oppure la porta dedicata 993 (IMAPS).
+
+## IMAP commands
+1 LOGIN username password	User's login.
+1 LIST "" *	Lists all directories.
+1 CREATE "INBOX"	Creates a mailbox with a specified name.
+1 DELETE "INBOX"	Deletes a mailbox.
+1 RENAME "ToRead" "Important"	Renames a mailbox.
+1 LSUB "" *	Returns a subset of names from the set of names that the User has declared as being active or subscribed.
+1 SELECT INBOX	Selects a mailbox so that messages in the mailbox can be accessed.
+1 UNSELECT INBOX	Exits the selected mailbox.
+1 FETCH <\ID> ALL	Retrieves data associated with a message in the mailbox.
+1 CLOSE	Removes all messages with the Deleted flag set.
+1 LOGOUT	Closes the connection with the IMAP server.
+
+## POP3 commands
+- USER username	Identifies the user.
+- PASS password	Authentication of the user using its password.
+- STAT	Requests the number of saved emails from the server.
+- LIST	Requests from the server the number and size of all emails.
+- RETR id	Requests the server to deliver the requested email by ID.
+- DELE id	Requests the server to delete the requested email by ID.
+- CAPA	Requests the server to display the server capabilities.
+- RSET	Requests the server to reset the transmitted information.
+- QUIT	Closes the connection with the POP3 server.
+
+## Dangerous settings
+- auth_debug	Enables all authentication debug logging.
+- auth_debug_passwords	This setting adjusts log verbosity, the submitted passwords, and the scheme gets logged.
+- auth_verbose	Logs unsuccessful authentication attempts and their reasons.
+- auth_verbose_passwords	Passwords used for authentication are logged and can also be truncated.
+- auth_anonymous_username	This specifies the username to be used when logging in with the ANONYMOUS SASL mechanism.
+
+## Footprinting the service
+Porte pop3: 110 e 995, porte per imap 143 e 993 (995 e 993 usano cifratura ssl,tls pre comunicare client-server)
+- nmap ...parametri vari
+- curl -k 'imaps://10.129.14.128' --user user:pass -v
+
+To interact with the IMAP or POP3 server over SSL, we can use openssl, as well as ncat. The commands for this would look like this:
+- openssl s_client -connect 10.129.14.128:pop3s -> per interagire con pop3
+- openssl s_client -connect 10.129.14.128:imaps -> per interagire con imap
+
+# SNMP
+1. Cos'è l'SNMP
+Il Simple Network Management Protocol (SNMP) è un protocollo standard per monitorare e gestire da remoto dispositivi di rete (router, switch, server, IoT).
+
+Porta UDP 161: Utilizzata per lo scambio di informazioni e l'invio di comandi di configurazione dal client al server.
+
+Porta UDP 162 (Trap): Utilizzata dal server/dispositivo per inviare notifiche o avvisi automatici (non richiesti) al client quando si verifica un evento specifico.
+
+2. MIB e OID (La Struttura Dati)
+MIB (Management Information Base): Un file di testo (scritto in notazione ASN.1) che funge da "mappa" gerarchica. Non contiene i dati reali, ma definisce quali informazioni sono interrogabili sul dispositivo, i tipi di dati e i relativi permessi di accesso.
+
+OID (Object Identifier): L'indirizzo univoco di ciascun oggetto o nodo all'interno dell'albero MIB, espresso come sequenza di numeri separati da punti (es. .1.3.6.1.2.1...). Più lunga è la catena di numeri, più specifica è l'informazione.
+
+3. Evoluzione e Versioni del Protocollo
+SNMPv1: La prima versione. Priva di autenticazione integrata e di cifratura: tutti i dati e i comandi viaggiano in chiaro sulla rete.
+
+SNMPv2c: Introduce funzionalità avanzate rispetto a v1, ma mantiene gli stessi problemi di sicurezza. Utilizza le Community Strings inviate in testo chiaro.
+
+SNMPv3: La versione attuale e più sicura. Introduce l'autenticazione tramite username e password e la cifratura del traffico (tramite pre-shared key), a fronte di una maggiore complessità di configurazione.
+
+4. Il Ruolo delle Community Strings (e i rischi)
+Le Community Strings fungono da vere e proprie password per autorizzare la lettura o la modifica delle informazioni sul dispositivo.
+Nei contesti reali, SNMPv2c viene ancora largamente utilizzato a causa della complessità di migrazione a SNMPv3.
+Poiché in v1 e v2c la community string viaggia in testo chiaro, chiunque sia in grado di intercettare il traffico di rete può catturarla e utilizzarla per leggere dati sensibili di configurazione o modificare i parametri dei dispositivi.
+
+## Default configuration
+- cat /etc/snmp/snmpd.conf | grep -v "#" | sed -r '/^\s*$/d'
+
+## Dangeorus settings
+- rwuser noauth	Provides access to the full OID tree without authentication.
+- rwcommunity \<community string> \<IPv4 address>	Provides access to the full OID tree regardless of where the requests were sent from.
+- rwcommunity6 \<community string> \<IPv6 address>	Same access as with rwcommunity with the difference of using IPv6.
+
+## Footprinting the service
+Si usano strumenti come *snmpwalk, onesixtyone, braa*. Snmpwalk viene utilizzato per interrogare gli OID. Onesixtyone può essere impiegato per eseguire attacchi di brute-force sui nomi delle community string, dal momento che queste possono essere nominate a discrezione dell'amministratore. Poiché tali community string possono essere associate a qualsiasi sorgente, l'identificazione di quelle esistenti può richiedere un lasso di tempo considerevole. 
+- snmpwalk -v2c -c public 10.129.14.128
+- onesixtyone -c /opt/useful/seclists/Discovery/SNMP/snmp.txt 10.129.14.128
+- braa \<community string>@\<IP>:.1.3.6.* (braa public@10.129.14.128:.1.3.6.*)
+
+# MySql
+
+1. Cos'è MySQL e come funziona
+Definizione: MySQL è un sistema di gestione di basi di dati relazionali (RDBMS) open source sviluppato e supportato da Oracle.
+
+Architettura Client-Server:
+
+Server MySQL: Il motore centrale che gestisce, memorizza e distribuisce i dati (organizzati in tabelle con righe, colonne e tipi di dati specifici).
+
+Client MySQL: Applicazioni o utenti che inviano query SQL al server per inserire, modificare, eliminare o recuperare informazioni.
+
+Backup: Le basi di dati vengono comunemente esportate o salvate come singoli file con estensione .sql (es. wordpress.sql).
+
+2. Ambito di Utilizzo e Stacks Web
+CMS e Siti Dinamici: È ampiamente utilizzato da piattaforme come WordPress per memorizzare contenuti, utenti, credenziali e configurazioni.
+
+Integrazione Web (LAMP / LEMP): Si combina frequentemente con Linux, Apache (o Nginx) e PHP per creare ambienti di hosting dinamici.
+
+Gestione dei Dati Sensibili: Dati critici come le password possono essere salvati in chiaro, ma la prassi standard prevede che vengano cifrati o elaborati tramite funzioni di hash univore (One-Way Encryption) a livello di script prima dell'inserimento.
+
+3. Comandi SQL ed Elaborazione delle Query
+Le istruzioni SQL inviate dal client permettono di interagire sia con i dati (selezionare, aggiungere, modificare, eliminare righe) sia con la struttura del database (creare/eliminare tabelle, gestire indici, relazioni e permessi degli utenti).
+
+Se un'applicazione web incontra un errore durante l'esecuzione di una query, i messaggi di errore restituiti possono rivelare dettagli tecnici preziosi sulla logica interna del database e sulla sua interazione con l'applicazione.
+
+4. La relazione con MariaDB
+MariaDB è un fork open source del codice sorgente originale di MySQL, creato dal fondatore originario di MySQL a seguito dell'acquisizione della società da parte di Oracle. È ampiamente compatibile con MySQL e ne condivide comandi e struttura.
+
+## Dangerous settings
+- user	Sets which user the MySQL service will run as.
+- password	Sets the password for the MySQL user.
+- admin_address	The IP address on which to listen for TCP/IP connections on the administrative network interface.
+- debug	This variable indicates the current debugging settings
+- sql_warnings	This variable controls whether single-row INSERT statements produce an information string if warnings occur.
+- secure_file_priv	This variable is used to limit the effect of data import and export operations.
+
+# MSSQL
+
+1. Cos'è MSSQL e caratteristiche principali
+Definizione: È il sistema di gestione di basi di dati relazionali proprietario (closed-source) di Microsoft.
+
+Ambiente di utilizzo: È diffuso principalmente in ambienti Windows e si integra in modo nativo con il framework .NET (sebbene esistano versioni per Linux e macOS).
+
+Porta di Default: In ascolto sulla porta TCP 1433.
+
+Database di sistema predefiniti:
+
+master: Traccia le informazioni di sistema dell'istanza.
+
+model: Template di base per ogni nuovo database creato.
+
+msdb: Usato da SQL Server Agent per pianificare attività ed inviare avvisi.
+
+tempdb: Memorizza oggetti temporanei.
+
+resource: Database di sola lettura contenente oggetti di sistema.
+
+2. Autenticazione e Client di Connessione
+Autenticazione: Il servizio viene eseguito di default come NT SERVICE\MSSQLSERVER e supporta la Windows Authentication (che delega la verifica delle credenziali al database SAM locale o ad Active Directory).
+
+Client principali:
+
+SSMS (SQL Server Management Studio): L'interfaccia grafica ufficiale per l'amministrazione.
+
+Impacket (mssqlclient.py): Strumento a riga di comando molto usato per la gestione e i test di connessione da ambienti Linux/Penetration Testing via T-SQL.
+
+Altri client: mssql-cli, HeidiSQL, PowerShell.
+
+3. Configurazioni Critiche e Vettori di Rischio
+Gli amministratori possono introdurre rischi di sicurezza a causa di errate configurazioni:
+
+Mancato utilizzo della cifratura durante le connessioni client-server.
+
+Uso di certificati autofirmati (soggetti a spoofing).
+
+Uso di named pipes (\\pipe\sql\query).
+
+Credenziali deboli o di default per l'account amministrativo principale (sa).
+
+4. Footprinting e Identificazione del Servizio
+Per analizzare e raccogliere informazioni su un'istanza MSSQL attiva:
+
+Nmap: Tramite gli script della categoria ms-sql-* (es. ms-sql-info, ms-sql-ntlm-info), permette di recuperare il nome host, la versione esatta del software, l'istanza e la presenza di named pipes.
+
+Metasploit: Con il modulo ausiliario scanner/mssql/mssql_ping è possibile identificare le caratteristiche principali dell'istanza SQL in ascolto.

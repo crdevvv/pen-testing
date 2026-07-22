@@ -63,7 +63,7 @@ Modi per definire script in nmap:
 - sudo nmap \<target> -sC
 - sudo nmap \<target> --script \<category>
 - nmap \<target> --script \<script-name>,\<script-name>,...
-- nmap 10.129.2.28 -p 80 -A: con -A scansiono con le opzioni -sV, .O (os detection), traceroute(--traceroute) e con script di default inclusi in -sC.
+- nmap 10.129.2.28 -p 80 -A: con -A scansiono con le opzioni -sV, -O (os detection), traceroute(--traceroute) e con script di default inclusi in -sC.
 
 # Performance
 ## Timeouts
