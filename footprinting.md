@@ -12,6 +12,49 @@
     - [Certificate transparency](#certificate-transparency)
     - [Identificazione server aziendali](#identificazione-server-aziendali)
     - [Analisi record dns](#analisi-record-dns)
+  - [Cloud Resources](#cloud-resources)
+  - [Staff](#staff)
+- [FTP](#ftp)
+  - [Default configuration](#default-configuration)
+  - [Dangerous settings](#dangerous-settings)
+  - [Download a file](#download-a-file)
+  - [Upload a file](#upload-a-file)
+  - [Footprinting the service](#footprinting-the-service)
+- [SMB](#smb)
+  - [Samba](#samba)
+    - [Default configuration](#default-configuration-1)
+    - [Dangerous settings](#dangerous-settings-1)
+    - [Restart samba](#restart-samba)
+    - [SMBclient - Connecting to the Share](#smbclient---connecting-to-the-share)
+    - [Download Files from SMB](#download-files-from-smb)
+  - [Footprinting the service](#footprinting-the-service-1)
+    - [RPC](#rpc)
+    - [Brute forcing user RIDs](#brute-forcing-user-rids)
+- [NFS](#nfs)
+  - [Dangerous settings](#dangerous-settings-2)
+  - [Footprinting the service](#footprinting-the-service-2)
+- [DNS](#dns)
+  - [Struttura dei server dns nel mondo](#struttura-dei-server-dns-nel-mondo)
+  - [Default configuration](#default-configuration-2)
+  - [Dangerous settings](#dangerous-settings-3)
+  - [Footprinting the service](#footprinting-the-service-3)
+    - [Subdomain brute forcing](#subdomain-brute-forcing)
+- [SMTP](#smtp)
+  - [Default configuration](#default-configuration-3)
+  - [Dangerous settings](#dangerous-settings-4)
+  - [Footprinting the Service](#footprinting-the-service-4)
+- [IMAP/POP3](#imappop3)
+  - [IMAP commands](#imap-commands)
+  - [POP3 commands](#pop3-commands)
+  - [Dangerous settings](#dangerous-settings-5)
+  - [Footprinting the service](#footprinting-the-service-5)
+- [SNMP](#snmp)
+  - [Default configuration](#default-configuration-4)
+  - [Dangerous settings](#dangerous-settings-6)
+  - [Footprinting the service](#footprinting-the-service-6)
+- [MySql](#mysql)
+  - [Dangerous settings](#dangerous-settings-7)
+- [MSSQL](#mssql)
 
 Pen testing and also enumeration are dynamic processes. Metodologia strutturata su 6 livelli e rappresenta i confini che cerchiamo di superare con il processo di enumerazione. Il processo di enumerazione è diviso in tre livelli a partire dal piu esterno:
 1. infrastructure-based enumeration (primi due livelli della metodologia)
@@ -532,3 +575,138 @@ Per analizzare e raccogliere informazioni su un'istanza MSSQL attiva:
 Nmap: Tramite gli script della categoria ms-sql-* (es. ms-sql-info, ms-sql-ntlm-info), permette di recuperare il nome host, la versione esatta del software, l'istanza e la presenza di named pipes.
 
 Metasploit: Con il modulo ausiliario scanner/mssql/mssql_ping è possibile identificare le caratteristiche principali dell'istanza SQL in ascolto.
+
+# Oracle TNS 
+1. Cos'è Oracle TNS
+Definizione: È un protocollo di comunicazione integrato nella suite Oracle Net Services che permette la trasmissione di dati tra database Oracle e applicazioni client attraverso una rete.
+
+Supporto Protocolli: TCP/IP, IPX/SPX e, nelle versioni più recenti, anche IPv6 e cifratura SSL/TLS.
+
+Settori di impiego: È ampiamente adottato in ambienti enterprise (finanza, sanità, retail) per la gestione di basi di dati complesse che richiedono elevati standard di sicurezza.
+
+2. Funzioni Principali e Sicurezza
+TNS svolge quattro ruoli chiave nell'architettura di rete:
+
+Risoluzione dei Nomi (Name Resolution): Mappa i nomi dei servizi database con i relativi indirizzi di rete.
+
+Gestione delle Connessioni (Connection Management): Stabilisce e mantiene il collegamento tra client e server.
+
+Bilanciamento del Carico (Load Balancing): Distribuisce le richieste per ottimizzare le prestazioni.
+
+Sicurezza e Cifratura: Integra meccanismi di cifratura sopra lo strato TCP/IP per proteggere il traffico di rete da accessi non autorizzati o intercettazioni.
+
+3. Strumenti per Amministratori e Sviluppatori
+Oltre alla connettività, TNS offre funzionalità avanzate di gestione dell'infrastruttura:
+
+Monitoraggio e analisi approfondita delle prestazioni.
+
+Gestione dei log e reportistica dettagliata degli errori.
+
+Gestione del carico di lavoro e tolleranza ai guasti (fault tolerance) tramite i servizi database.
+
+## Default configuration
+1. Configurazione di Default e Porta
+Porta standard: Il TNS Listener ascolta di default le connessioni in entrata sulla porta TCP 1521 (modificabile in fase di installazione o nei file di configurazione). Il listener supporta diversi protocolli di rete (TCP/IP, UDP, IPX/SPX, AppleTalk) e può ascoltare su interfacce di rete specifiche o su tutte quelle disponibili. Gestione remota: Di default, la gestione remota era consentita in Oracle 8i/9i, mentre è disabilitata nelle versioni più recenti (Oracle 10g/11g).
+Il listener accetta connessioni solo da hosts autorizzati ed esegue autenticazione con combinazione di hostname, ip, username e passw. TNS usato di frequente con altri servizi Oracle come DBSNMP, Oracle databases, Oracle application server, O enterprise manager, ecc.
+
+2. File di Configurazione Principali
+I file di configurazione sono scritti in testo chiaro e si trovano solitamente nella directory $ORACLE_HOME/network/admin:
+
+tnsnames.ora (Client-side): Utilizzato dal software client per risolvere i nomi dei servizi in indirizzi di rete. Associa un nome servizio (es. ORCL) all'IP, alla porta (es. 1521) e al nome del database (SERVICE_NAME o SID). Può contenere anche opzioni di bilanciamento del carico e autenticazione.
+
+listener.ora (Server-side): Definisce le proprietà del processo Listener sul server. Specifica quali servizi, istanze di database (SID_NAME) e indirizzi/porte il server deve monitorare per inoltrare le richieste in arrivo alle istanze corrette.
+
+In breve, il software client Oracle Net Services (NS) utilizza il file tnsnames.ora per risolvere i nomi dei servizi in indirizzi di rete, mentre il processo listener utilizza il file listener.ora per determinare i servizi su cui deve rimanere in ascolto e il comportamento del listener stesso.
+
+3. Credenziali di Default e Servizi Correlati
+Gestione delle password: Le impostazioni predefinite variano tra le versioni di Oracle. Ad esempio, Oracle 9 utilizzava la password di default CHANGE_ON_INSTALL, mentre Oracle 10 non ne imposta una predefinita.
+
+Servizio DBSNMP: Il servizio Oracle DBSNMP utilizza storicamente la password di default dbsnmp.
+
+Servizi esterni a rischio: L'uso combinato di Oracle con servizi datati come finger può esporre il sistema a vulnerabilità relative alla struttura delle home directory.
+
+4. Meccanismi di Protezione (PL/SQL Exclusion List)
+PlsqlExclusionList: È un file di testo (da inserire in $ORACLE_HOME/sqldeveloper) che funge da blacklist. Contiene i nomi dei pacchetti o tipi PL/SQL di cui si vuole impedire l'esecuzione tramite l'Oracle Application Server, bloccando accessi non autorizzati a procedure sensibili.
+
+## Setting and testing ODAT
+- git clone https://github.com/quentinhardy/odat.git
+- pip3 install pycryptodome
+- pip3 install openpyxl
+
+Oracle db attacking tool è uno strumento di pen testing per enumerare e fare exploit di vulnerabilita di db Oracle (sql injection, remote code execution, privilege escalation ecc)
+
+1. Cos'è il System Identifier (SID)
+Definizione: In un sistema Oracle RDBMS, il SID è un identificatore univoco che individua una specifica istanza di database (l'insieme di processi e strutture di memoria che gestiscono i dati).
+
+Ruolo nella Connessione: Quando un client si connette, deve specificare il SID nella stringa di connessione per indicare a quale istanza intende accedere.
+
+Fallback di Default: Se il client non specifica alcun SID, viene utilizzato il valore predefinito configurato nel file tnsnames.ora.
+
+Rilevanza: Un SID errato causa il fallimento istantaneo del tentativo di connessione. Gli amministratori lo utilizzano per identificare e gestire le singole istanze (avvio, arresto, allocazione di memoria, monitoraggio).
+
+2. Enumerazione e Brute-Force del SID
+Poiché il SID è un requisito fondamentale per potersi autenticare e interagire con il database, l'enumerazione (o l'indovinamento tramite brute-force) dei SID esistenti è un passaggio primario durante i test di sicurezza.
+
+Tra i principali strumenti utilizzati per questa fase figurano Nmap, Hydra e ODAT (Oracle Database Attacking Tool).
+
+- $ ./odat.py all -s ip
+- sudo apt install oracle-instantclient-sqlplus
+- sqlplus scott/tiger@10.129.204.235/XE
+- sudo sh -c "echo /usr/lib/oracle/12.2/client64/lib > /etc/ld.so.conf.d/oracle-instantclient.conf";sudo ldconfig
+
+- comandi sqlplus: [sqlplus](https://docs.oracle.com/cd/E11882_01/server.112/e41085/sqlqraa001.htm#SQLQR985)
+- $ sqlplus scott/tiger@10.129.204.235/XE as sysdba: log in as system db admin, higher privileges, if granted db administrator
+- select name, password from sys.user$;
+poi provo a caricare una web shell nel target
+- crirom00@htb[/htb]$ echo "Oracle File Upload Test" > testing.txt
+- crirom00@htb[/htb]$ ./odat.py utlfile -s 10.129.204.235 -d XE -U scott -P tiger --sysdba --putFile C:\\inetpub\\wwwroot testing.txt ./testing.txt
+[1] (10.129.204.235:1521): Put the ./testing.txt local file in the C:\inetpub\wwwroot folder like testing.txt on the 10.129.204.235 server
+[+] The ./testing.txt file was created on the C:\inetpub\wwwroot directory on the 10.129.204.235 server like the testing.txt file
+
+- C:\inetpub\wwwroot per windows, /var/www/html per linux
+
+# IPMI
+1. Cos'è IPMI e come funziona
+Gestione Hardware Fuori Banda (Out-of-Band): IPMI è uno standard che consente agli amministratori di monitorare e gestire server e sistemi anche se spenti, bloccati o prima che il sistema operativo venga avviato (es. per modificare il BIOS o accedere via console seriale).
+
+Autonomia: Funziona in modo indipendente da BIOS, CPU, firmware e sistema operativo dell'host. Richiede solo un'alimentazione e un cavo di rete collegato.
+
+Componente chiave (BMC): Il Baseboard Management Controller (BMC) è un microcontrollore dedicato (spesso un chip ARM integrato sulla scheda madre) che esegue un proprio sistema operativo (solitamente Linux). I marchi più diffusi sono HP iLO, Dell iDRAC e Supermicro IPMI.
+
+Porta di rete: Comunica tramite la porta UDP 623.
+
+2. Implicazioni di Sicurezza e Vettori d'Attacco
+Ottenere l'accesso a un BMC equivale quasi ad avere un accesso fisico diretto alla scheda madre del server target (permette di riavviare, spegnere o reinstallare completamente l'OS).
+
+I due vettori di attacco principali sono:
+
+- Credenziali di Default Non Modificate
+Spesso i BMC mantengono le password di fabbrica. Alcune combinazioni standard:
+
+Dell iDRAC: root : calvin
+
+Supermicro IPMI: ADMIN : ADMIN
+
+HP iLO: Administrator : (stringa casuale di 8 caratteri stampata sul tag fisico del server)
+
+- Vulnerabilità Intrinseca del Protocollo RAKP (IPMI 2.0)
+Il difetto architetturale: Nel processo di autenticazione di IPMI v2.0, il server invia al client l'hash salted del password (SHA1 o MD5) prima che l'autenticazione sia completata.
+
+L'impatto: Chiunque sulla rete può richiedere l'hash per qualsiasi utente valido noto (es. ADMIN, root) e tentare di decifrarlo offline via brute-force o dizionario.
+
+Mitigazione: Non esiste una patch diretta perché il comportamento fa parte delle specifiche del protocollo. Le uniche difese sono l'uso di password molto complesse e la segmentazione di rete (isolare le interfacce di gestione).
+
+3. Fasi operative nei Penetration Test
+Enumerazione / Footprinting:
+
+Nmap: Con il comando nmap -sU --script ipmi-version -p 623 <IP> per identificare il servizio e la versione IPMI 2.0.
+
+Metasploit: Con il modulo auxiliary/scanner/ipmi/ipmi_version.
+
+Estrazione degli Hash:
+
+Uso del modulo Metasploit auxiliary/scanner/ipmi/ipmi_dumphashes per estrarre gli hash RAKP degli utenti.
+
+Cracking Offline:
+
+Gli hash ottenuti possono essere craccati offline con Hashcat (modalità -m 7300) o John the Ripper, sfruttando dizionari (come rockyou.txt) o attacchi a maschera.
