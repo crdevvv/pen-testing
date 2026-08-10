@@ -50,11 +50,15 @@
   - [Footprinting the service](#footprinting-the-service-5)
 - [SNMP](#snmp)
   - [Default configuration](#default-configuration-4)
-  - [Dangerous settings](#dangerous-settings-6)
+  - [Dangeorus settings](#dangeorus-settings)
   - [Footprinting the service](#footprinting-the-service-6)
 - [MySql](#mysql)
   - [Dangerous settings](#dangerous-settings-7)
 - [MSSQL](#mssql)
+- [Oracle TNS](#oracle-tns)
+  - [Default configuration](#default-configuration-5)
+  - [Setting and testing ODAT](#setting-and-testing-odat)
+- [IPMI](#ipmi)
 
 Pen testing and also enumeration are dynamic processes. Metodologia strutturata su 6 livelli e rappresenta i confini che cerchiamo di superare con il processo di enumerazione. Il processo di enumerazione è diviso in tre livelli a partire dal piu esterno:
 1. infrastructure-based enumeration (primi due livelli della metodologia)
