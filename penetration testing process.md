@@ -49,7 +49,7 @@
   - [Data retention](#data-retention)
   - [Close out](#close-out)
 
-![Image](/img.png "grafo")
+![Image](./img/img.png "grafo")
 
 # Pentesting process
 

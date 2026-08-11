@@ -132,7 +132,7 @@ These name servers are all within the facebook.com domain, suggesting that Meta 
 Converte dominio human-readable in indirizzi ip che i pc usano per comunicare.
 
 ## How dns works
-![dns](./dnswr.png)
+![dns](./img/dnswr.png)
 1. Your Computer Asks for Directions (DNS Query): first check local pc memory cache per vedere se è in memoria l'ip da una visita precedente
 2. The DNS Resolver Checks its Map (Recursive Lookup): inizia percorso per gerarchia dns
 3. Root Name Server Points the Way: indirizzo verso il corretto tld name server (.com, .org,...)
@@ -258,7 +258,7 @@ Durante una fase di Web Reconnaissance, la ricerca dei sottodomini sui DNS pubbl
 - Richiesta 2: Host: dev.example.com $\rightarrow$ Risposta: 200 OK (VHost Trovato!)
 
 ## Server vhost lookup
-![vhost](./vhost.png)
+![vhost](./img/vhost.png)
 1. Browser Requests a Website: When you enter a domain name (e.g., www.inlanefreight.com) into your browser, it initiates an HTTP request to the web server associated with that domain's IP address.
 2. Host Header Reveals the Domain: The browser includes the domain name in the request's Host header, which acts as a label to inform the web server which website is being requested.
 3. Web Server Determines the Virtual Host: The web server receives the request, examines the Host header, and consults its virtual host configuration to find a matching entry for the requested domain name.

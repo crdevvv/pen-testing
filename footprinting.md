@@ -73,7 +73,7 @@ Per ogni layer abbimo due sottolivelli (partiamo da infrastructure-based):
 5. privileges
 6. OS setup
 
-![Image](/fprinting.png "tab")
+![Image](./img/fprinting.png "tab")
 
 ## Layer1: internet presence
 Trovare traget su cui investigare. **Obiettivo**: identificare tutti i sistemi target e interfacce da poter testare
@@ -260,7 +260,7 @@ Scoperti i servizi nfs, possiamo caricarli in locale. Quindi creiamo una nuova c
 - sudo umount ./target-NFS: unmounting
 
 # DNS
-![dns](dns.png)
+![dns](./img/dns.png)
 Sistema per risolvere nomi in indirizzi ip, non ha un db centrale! Ci sono diversi tipi di dns: 
 - dns root server: responsabile del top-level domain, chiamato solo se i name serve non rispondono (ce ne sono 13 nel mondo)
 - Authoritative name server: 
@@ -270,7 +270,7 @@ Sistema per risolvere nomi in indirizzi ip, non ha un db centrale! Ci sono diver
 - Resolver: esegue name resolution localmente nel pc o nel router
 
 DNS principalmente non cifrato, quindi query dns sono spiabili. Soluzioni: dns over tls (dot) o https (doh). Ci sono diversi tipi di record dns:
-![dnstree](dns2.png)
+![dnstree](./img/dns2.png)
 
 ## Struttura dei server dns nel mondo
 Un singolo server DNS non contiene l'intera struttura (Root, TLD, SLD, Sottodomini) al suo interno. Il DNS è un sistema distribuito: ogni server sulla Terra gestisce solo un piccolo pezzo di questo albero (chiamato Zona di Autorità), e tutti insieme collaborano per darsi risposte a vicenda. </br>
