@@ -1,4 +1,23 @@
 
+# Table of Contents
+- [Host discovery](#host-discovery)
+- [Host and port scanning](#host-and-port-scanning)
+- [Saving the result](#saving-the-result)
+	- [Different format](#different-format)
+	- [Style sheets](#style-sheets)
+- [Service enumeration](#service-enumeration)
+- [Nmap scripting engine](#nmap-scripting-engine)
+- [Performance](#performance)
+	- [Timeouts](#timeouts)
+	- [Max retries](#max-retries)
+	- [Rates](#rates)
+	- [Timing](#timing)
+- [Firewall and IDS/IPS Evasion](#firewall-and-idsips-evasion)
+	- [Determine Firewalls and their rules](#determine-firewalls-and-their-rules)
+	- [Detect IDS/IPS](#detect-idsips)
+	- [Decoys](#decoys)
+	- [DNS proxying](#dns-proxying)
+
 # Host discovery
 Ci sono molte opzioni di nmap per determinare quali host sono attivi. La piu efficace è utilizzare icmp echo requests.
 - nmap ip/mask -sn -oA tnet | grep for | cut -d" " -f5: -sn disabilita port scanning -oA scrive output su tnet file

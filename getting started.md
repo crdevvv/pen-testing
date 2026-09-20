@@ -1,4 +1,6 @@
 
+# Table of Contents
+
 - [Service scanning](#service-scanning)
   - [Nmap](#nmap)
   - [Attacking network services](#attacking-network-services)
@@ -29,6 +31,12 @@
   - [Using SCP](#using-scp)
   - [Using Base64](#using-base64)
   - [Validating File Transfers](#validating-file-transfers)
+
+
+
+- [Nibbles - enumeration](#nibbles---enumeration)
+- [Nibbles - web footprinting](#nibbles---web-footprinting)
+- [Nibbles - initial foothold](#nibbles---initial-foothold)
 
 # Service scanning
 
