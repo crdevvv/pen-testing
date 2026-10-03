@@ -1,23 +1,74 @@
 
 # Table of Contents
 - [Shells Jack Us In, Payloads Deliver Us Shells](#shells-jack-us-in-payloads-deliver-us-shells)
-	- [Payload deliver us shells](#payload-deliver-us-shells)
+  - [Payload deliver us shells](#payload-deliver-us-shells)
 - [Anatomy of a shell](#anatomy-of-a-shell)
 - [Bind shells](#bind-shells)
-	- [What is it?](#what-is-it)
-	- [Practicing with GNU Netcat](#practicing-with-gnu-netcat)
-		- [No. 1: Server - Target starting Netcat listener](#no-1-server---target-starting-netcat-listener)
-		- [No. 2: Client - Attack box connecting to target](#no-2-client---attack-box-connecting-to-target)
-		- [No. 3: Server - Target receiving connection from client](#no-3-server---target-receiving-connection-from-client)
-		- [No. 4: Client - Attack box sending message Hello Academy](#no-4-client---attack-box-sending-message-hello-academy)
-		- [No. 5: Server - Target receiving Hello Academy message](#no-5-server---target-receiving-hello-academy-message)
-	- [Establishing a Basic Bind Shell with Netcat](#establishing-a-basic-bind-shell-with-netcat)
-		- [No. 1: Server - Binding a Bash shell to the TCP session](#no-1-server---binding-a-bash-shell-to-the-tcp-session)
-		- [No. 2: Client - Connecting to bind shell on target](#no-2-client---connecting-to-bind-shell-on-target)
+  - [What is it?](#what-is-it)
+  - [Practicing with GNU Netcat](#practicing-with-gnu-netcat)
+    - [No. 1: Server - Target starting Netcat listener](#no-1-server---target-starting-netcat-listener)
+    - [No. 2: Client - Attack box connecting to target](#no-2-client---attack-box-connecting-to-target)
+    - [No. 3: Server - Target receiving connection from client](#no-3-server---target-receiving-connection-from-client)
+    - [No. 4: Client - Attack box sending message Hello Academy](#no-4-client---attack-box-sending-message-hello-academy)
+    - [No. 5: Server - Target receiving Hello Academy message](#no-5-server---target-receiving-hello-academy-message)
+  - [Establishing a Basic Bind Shell with Netcat](#establishing-a-basic-bind-shell-with-netcat)
+    - [No. 1: Server - Binding a Bash shell to the TCP session](#no-1-server---binding-a-bash-shell-to-the-tcp-session)
+    - [No. 2: Client - Connecting to bind shell on target](#no-2-client---connecting-to-bind-shell-on-target)
 - [Reverse Shells](#reverse-shells)
-	- [Hands-on With A Simple Reverse Shell in Windows](#hands-on-with-a-simple-reverse-shell-in-windows)
-		- [Server](#server)
-
+  - [Hands-on With A Simple Reverse Shell in Windows](#hands-on-with-a-simple-reverse-shell-in-windows)
+    - [Server](#server)
+    - [Client (target)](#client-target)
+    - [Server (attack box)](#server-attack-box)
+- [Introduction to Payloads](#introduction-to-payloads)
+  - [Netcat/Bash Reverse Shell One-liner](#netcatbash-reverse-shell-one-liner)
+  - [PowerShell One-liner Explained](#powershell-one-liner-explained)
+    - [Calling PowerShell](#calling-powershell)
+    - [Binding A Socket](#binding-a-socket)
+    - [Setting The Command Stream](#setting-the-command-stream)
+    - [Empty Byte Stream](#empty-byte-stream)
+    - [Stream Parameters](#stream-parameters)
+    - [Set The Byte Encoding](#set-the-byte-encoding)
+    - [Invoke-Expression](#invoke-expression)
+    - [Show Working Directory](#show-working-directory)
+    - [Sets Sendbyte](#sets-sendbyte)
+    - [Terminate TCP Connection](#terminate-tcp-connection)
+- [Automating Payloads & Delivery with Metasploit](#automating-payloads--delivery-with-metasploit)
+  - [Nmap scan](#nmap-scan)
+  - [Searching Within Metasploit](#searching-within-metasploit)
+  - [Option Selection](#option-selection)
+  - [Examining an Exploit's Options](#examining-an-exploit's-options)
+  - [Setting Options](#setting-options)
+  - [Exploits Away](#exploits-away)
+- [Crafting Payloads with MSFvenom](#crafting-payloads-with-msfvenom)
+  - [Practicing with MSFvenom](#practicing-with-msfvenom)
+  - [Staged vs. Stageless Payloads](#staged-vs-stageless-payloads)
+  - [Building A Stageless Payload](#building-a-stageless-payload)
+    - [Build it](#build-it)
+    - [Executing stagelss payload](#executing-stagelss-payload)
+  - [Building a simple Stageless Payload for a Windows system](#building-a-simple-stageless-payload-for-a-windows-system)
+    - [Windows payload](#windows-payload)
+    - [Executing a Simple Stageless Payload On a Windows System](#executing-a-simple-stageless-payload-on-a-windows-system)
+- [Infiltrating Windows](#infiltrating-windows)
+  - [Enumerating Windows & Fingerprinting Methods](#enumerating-windows--fingerprinting-methods)
+    - [Banner Grab to Enumerate Ports](#banner-grab-to-enumerate-ports)
+  - [Bats, DLLs, & MSI Files](#bats-dlls--msi-files)
+    - [Payload types to consider](#payload-types-to-consider)
+  - [Tools, Tactics, and Procedures for Payload Generation, Transfer, and Execution](#tools-tactics-and-procedures-for-payload-generation-transfer-and-execution)
+    - [Payload generation](#payload-generation)
+    - [Payload transfer and execution](#payload-transfer-and-execution)
+  - [CMD-Prompt and PowerShells for Fun and Profit](#cmd-prompt-and-powershells-for-fun-and-profit)
+  - [WSL and powershell for linux](#wsl-and-powershell-for-linux)
+- [Spawning interactive shells](#spawning-interactive-shells)
+- [Introduction to Web Shells](#introduction-to-web-shells)
+  - [What is a web shell?](#what-is-a-web-shell)
+- [Laudanum](#laudanum)
+- [Detection & prevention](#detection--prevention)
+  - [MITRE ATT&CK](#mitre-attck)
+  - [Eventi da Monitorare](#eventi-da-monitorare)
+  - [Visibilità di Rete](#visibilità-di-rete)
+  - [Protezione degli End-Device](#protezione-degli-end-device)
+  - [Strategie di Mitigazione Consigliate](#strategie-di-mitigazione-consigliate)
+  
 # Shells Jack Us In, Payloads Deliver Us Shells
 A shell is a program that provides a computer user with an interface to input instructions into the system and view text output (Bash, Zsh, cmd, and PowerShell, for example). As penetration testers and information security professionals, a shell is often the result of exploiting a vulnerability or bypassing security measures to gain interactive access to a host.
 
@@ -361,3 +412,71 @@ Metodi di generazione di payload e modi per trasferili alla vittima.
 -	vim -c ':!/bin/sh' (esegue il comando tramite la flag -c all'avvio).
 
 	Oppure, dall'interno di Vim: :set shell=/bin/sh seguito dal comando :shell.
+
+
+# Introduction to Web Shells
+- Centralità delle Web App: I servizi software e d'intrattenimento si sono spostati quasi interamente sul web (accessibili via HTTP/S), rendendo le applicazioni web il bersaglio principale delle attività di pentesting.
+
+- Vettore di attacco: Poiché le reti perimetrali aziendali sono sempre più protette e non espongono più servizi vulnerabili, l'accesso iniziale (foothold) a una rete interna avviene per lo più tramite:
+
+	- Attacchi alle applicazioni web (SQLi, LFI/RFI, Command Injection, File Upload).
+
+	- Password spraying (su portali VPN, OWA, Citrix, ecc.).
+
+	- Social engineering.
+
+- Superficie d'attacco: funzionalità di caricamento file (form pubblici, avatar utente, pannelli amministrativi come Tomcat/WebLogic, o FTP con permessi errati). Sfruttando vulnerabilità di unrestricted file upload, è possibile caricare una web shell per eseguire codice sul server.
+
+## What is a web shell?
+Una web shell è una sessione di shell basata su browser che possiamo utilizzare per interagire con il sistema operativo sottostante di un server web. 
+
+La maggior parte delle web shell si ottiene caricando sul server bersaglio un payload, che dovrebbe darci la capacità di eseguire codice da remoto all'interno del browser.
+
+
+Nella maggior parte dei casi, questo è il metodo iniziale per ottenere l'esecuzione remota di codice tramite un'applicazione web, che possiamo poi sfruttare in seguito per passare a una reverse shell più interattiva e garantire la persistenza sul sistema.
+
+# Laudanum
+Laudanum è una repo di file iniettabili per ottenere accesso alla vittima tramite reverse shell. Include files in asp, aspx, jsp, php, etc.
+
+Scegliere da /usr/share/laudamun/ la web shell copiare e modificare parametrim successivamente caricarla in un form e testare se è protetto da web shell.
+
+# Detection & prevention
+1. Il Framework MITRE ATT&CK [mitre](https://attack.mitre.org/)
+
+Notable MITRE ATT&CK Tactics and Techniques:
+
+- Initial Access (Accesso Iniziale): Compromissione di servizi esposti (web app, misconfigurazioni SMB) per ottenere un primo punto d'appoggio (foothold) [OWASP top ten](https://owasp.org/www-project-top-ten/).
+
+- Execution (Esecuzione): Esecuzione di codice/payload sull'host vittima (tramite comandi nel browser, PowerShell, exploit o upload di file).
+
+- Command & Control - C2 (Comando e Controllo): Mantenimento dell'accesso interattivo e comunicazione con la macchina compromessa (usando traffico HTTP/S, DNS, NTP o app consentite come Teams/Discord).
+
+2. Eventi da Monitorare (Indicatori di Compromissione)
+
+Upload di file: Monitorare i log delle applicazioni web per rilevare il caricamento di file malevoli (web shell).
+
+Azioni sospette di utenti non-admin: Comandi insoliti eseguiti da utenti standard (es. whoami via Bash/CMD, PowerShell) o connessioni SMB anomale tra host finali (end-to-end anziché verso i server di rete).
+
+Sessioni di rete anomale: Rilevamento di traffico insolito tramite l'analisi di dati NetFlow (es. traffico verso porte non standard come la 4444 di Meterpreter, tentativi di login remoti o picchi di richieste GET/POST).
+
+3. Visibilità di Rete
+
+Mappatura e Baselines: È essenziale mantenere schemi di topologia di rete aggiornati (anche tramite tool interattivi come NetBrain) e definire un comportamento di rete "normale" (baseline).
+
+Visibilità Layer 7 e Ispezione: Utilizzare apparati di rete moderni con visibilità a livello applicativo (Layer 7) e capacità di Deep Packet Inspection (DPI) per bloccare payload non crittografati in transito (es. sessioni Netcat in chiaro).
+
+4. Protezione degli End-Device (Endpoint Security)
+
+Hardening degli Endpoints: Mantenere attivi e aggiornati Antivirus/EDR (es. Microsoft Defender) e firewall locali su tutti i dispositivi (PC, server, NAS, stampanti).
+
+Strategia di Patching: Applicare rapidamente gli aggiornamenti di sicurezza rilasciati dai vendor.
+
+5. Strategie di Mitigazione Consigliate
+
+Application Sandboxing: Isolare le applicazioni esposte all'esterno per limitare i danni in caso di compromissione.
+
+Principio del Minimo Privilegio (Least Privilege): Riconfigurare i permessi in modo che gli utenti ordinari non abbiano privilegi amministrativi (o di Domain Admin).
+
+Segmentazione dell'Host: Posizionare i server esposti a Internet (es. web server) all'interno di una DMZ per impedire movimenti laterali verso la rete interna.
+
+Firewall Fisici e Applicativi (WAF): Implementare regole rigide di traffico inbound ed outbound (es. bloccare uscite su porte non autorizzate) per spezzare il funzionamento di bind e reverse shell.
